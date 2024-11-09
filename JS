@@ -1,0 +1,191 @@
+function decrypt() {
+    const encryptedText = document.getElementById("encryptedText").value.trim();
+    const method = document.getElementById("method").value;
+    const key = document.getElementById("key").value.trim();
+    const decryptedTextElement = document.getElementById("decryptedText");
+
+    // Clear previous messages
+    decryptedTextElement.textContent = '';
+
+    // Validate encrypted text (should not be empty or contain numbers)
+    if (encryptedText === '') {
+        decryptedTextElement.textContent = "Error: Encrypted text cannot be empty.";
+        decryptedTextElement.style.color = 'red';
+        return;
+    }
+    if (/\d/.test(encryptedText)) {
+        decryptedTextElement.textContent = "Error: Encrypted text should not contain numbers.";
+        decryptedTextElement.style.color = 'red';
+        return;
+    }
+
+    // Validate key for Caesar Cipher (should not be provided)
+    if (method === "caesar" && key !== '') {
+        decryptedTextElement.textContent = "Error: Key should not be provided for Caesar Cipher.";
+        decryptedTextElement.style.color = 'red';
+        return;
+    }
+
+    // Validate key for Vigenère Cipher (should be non-empty and contain only letters)
+    if (method === "vigenere") {
+        if (key === '') {
+            decryptedTextElement.textContent = "Error: Key is required for Vigenère Cipher.";
+            decryptedTextElement.style.color = 'red';
+            return;
+        }
+        if (!/^[a-zA-Z]+$/.test(key)) {
+            decryptedTextElement.textContent = "Error: Key must contain only letters.";
+            decryptedTextElement.style.color = 'red';
+            return;
+        }
+    }
+
+    // Validate key for Columnar Transposition Cipher (should be non-empty)
+    if (method === "columnar" && key === '') {
+        decryptedTextElement.textContent = "Error: Key is required for Columnar Transposition Cipher.";
+        decryptedTextElement.style.color = 'red';
+        return;
+    }
+
+    // Call appropriate decryption function based on selected method
+    let decryptedText;
+
+    switch (method) {
+        case "caesar":
+            decryptedText = caesarDecrypt(encryptedText);
+            break;
+        case "vigenere":
+            decryptedText = vigenereDecrypt(encryptedText, key);
+            break;
+        case "railfence":
+            decryptedText = railFenceDecrypt(encryptedText);
+            break;
+        case "monoalphabetic":
+            decryptedText = monoalphabeticDecrypt(encryptedText);
+            break;
+        case "columnar":
+            decryptedText = columnarDecrypt(encryptedText, key);
+            break;
+        default:
+            decryptedTextElement.textContent = "Error: Invalid decryption method.";
+            decryptedTextElement.style.color = 'red';
+            return;
+    }
+
+    // Display the decrypted text
+    decryptedTextElement.textContent = decryptedText || "Decryption failed.";
+    decryptedTextElement.style.color = 'black';
+}
+
+// Caesar Cipher Decryption
+function caesarDecrypt(text) {
+    const shift = 3; // Example shift value, can be adjusted or made dynamic
+    let decrypted = '';
+    for (let i = 0; i < text.length; i++) {
+        let char = text.charCodeAt(i);
+        // Decrypt only alphabetic characters
+        if (char >= 65 && char <= 90) {
+            decrypted += String.fromCharCode(((char - 65 - shift + 26) % 26) + 65);
+        } else if (char >= 97 && char <= 122) {
+            decrypted += String.fromCharCode(((char - 97 - shift + 26) % 26) + 97);
+        } else {
+            decrypted += text[i]; // Non-alphabetic characters remain unchanged
+        }
+    }
+    return decrypted;
+}
+
+// Vigenère Cipher Decryption
+function vigenereDecrypt(text, key) {
+    let decrypted = '';
+    key = key.toLowerCase();
+    for (let i = 0, j = 0; i < text.length; i++) {
+        let char = text.charCodeAt(i);
+        if (char >= 65 && char <= 90) {
+            decrypted += String.fromCharCode(((char - 65 - (key.charCodeAt(j % key.length) - 97) + 26) % 26) + 65);
+            j++;
+        } else if (char >= 97 && char <= 122) {
+            decrypted += String.fromCharCode(((char - 97 - (key.charCodeAt(j % key.length) - 97) + 26) % 26) + 97);
+            j++;
+        } else {
+            decrypted += text[i]; // Non-alphabetic characters remain unchanged
+        }
+    }
+    return decrypted;
+}
+
+// Rail Fence Cipher Decryption
+function railFenceDecrypt(text) {
+    const numRails = 3; // Change this to the number of rails used during encryption
+    const rail = Array.from({ length: numRails }, () => []);
+    let direction = null;
+    let row = 0;
+
+    // Create the rail fence pattern
+    for (let i = 0; i < text.length; i++) {
+        if (row === 0) direction = true; // Moving down
+        if (row === numRails - 1) direction = false; // Moving up
+        rail[row].push(text[i]);
+        row += direction ? 1 : -1;
+    }
+
+    let decrypted = '';
+    let index = 0;
+
+    // Read the characters in a zig-zag pattern
+    for (let i = 0; i < numRails; i++) {
+        for (let j = 0; j < rail[i].length; j++) {
+            decrypted += rail[i][j];
+        }
+    }
+    return decrypted;
+}
+
+// Monoalphabetic Substitution Cipher Decryption
+function monoalphabeticDecrypt(text) {
+    const alphabet = "abcdefghijklmnopqrstuvwxyz";
+    const key = "zyxwvutsrqponmlkjihgfedcba"; // Example substitution key
+    let decrypted = '';
+
+    for (let char of text.toLowerCase()) {
+        const index = alphabet.indexOf(char);
+        decrypted += index !== -1 ? key[index] : char; // Non-alphabetic characters remain unchanged
+    }
+    return decrypted;
+}
+
+// Columnar Transposition Cipher Decryption
+function columnarDecrypt(text, key) {
+    const numCols = key.length;
+    const numRows = Math.ceil(text.length / numCols);
+    const emptyCells = (numCols * numRows) - text.length;
+
+    const decrypted = Array(numRows).fill('').map(() => Array(numCols).fill(''));
+
+    // Fill the table column by column based on the key order
+    let col = 0, row = 0;
+    for (let char of text) {
+        if (col >= numCols) {
+            col = 0;
+            row++;
+        }
+        if (row < numRows) {
+            decrypted[row][col] = char;
+            col++;
+        }
+    }
+
+    // Read the table in the order of the key
+    const keyOrder = [...key].map((k, i) => [k, i]).sort().map(item => item[1]);
+    let decryptedText = '';
+    for (let i = 0; i < numCols; i++) {
+        const currentCol = keyOrder[i];
+        for (let j = 0; j < numRows; j++) {
+            if (decrypted[j][currentCol]) {
+                decryptedText += decrypted[j][currentCol];
+            }
+        }
+    }
+
+    return decryptedText;
+}
